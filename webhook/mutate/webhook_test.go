@@ -1,4 +1,4 @@
-package webhook
+package mutate
 
 import (
 	"encoding/json"
@@ -88,7 +88,7 @@ func TestMutatesValidRequest(t *testing.T) {
 		}
 	}`
 
-	coordAddr = "coordinator-mesh-api.marblerun:25554"
+	CoordAddr = "coordinator-mesh-api.marblerun:25554"
 
 	// test if patch contains all desired values
 	response, err := mutate([]byte(rawJSON), true)
@@ -226,7 +226,7 @@ func TestPreSetValues(t *testing.T) {
 		}
 	}`
 
-	coordAddr = "coordinator-mesh-api.marblerun:25554"
+	CoordAddr = "coordinator-mesh-api.marblerun:25554"
 
 	response, err := mutate([]byte(rawJSON), false)
 	if err != nil {

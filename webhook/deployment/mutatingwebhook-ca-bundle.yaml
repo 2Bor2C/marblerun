@@ -1,0 +1,25 @@
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: marble-injector-cfg
+  labels:
+    app: marble-injector
+webhooks:
+  - name: marble-injector.marblerun.svc.cluster.local
+    clientConfig:
+      caBundle: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUM1ekNDQWMrZ0F3SUJBZ0lCQVRBTkJna3Foa2lHOXcwQkFRc0ZBREFWTVJNd0VRWURWUVFERXdwdGFXNXAKYTNWaVpVTkJNQjRYRFRJeE1ERXhOREV5TURRek5sb1hEVE14TURFeE16RXlNRFF6Tmxvd0ZURVRNQkVHQTFVRQpBeE1LYldsdWFXdDFZbVZEUVRDQ0FTSXdEUVlKS29aSWh2Y05BUUVCQlFBRGdnRVBBRENDQVFvQ2dnRUJBTlhQCkpRRm5GZS9EeTUxcHQwbHVuZndQNG1kOCtDbVBCakMrMDVOcTBhLzBWSmV6MDZqZVc5bllHay9ma0NpVXZXSlcKSVVHZEZvWHJvMUtZYjh3czJLeTc5eGoyUis5UTl3bS9ZZVBSVmNHTkxIcVhlYk1wdXBFUmxOUjFsbVg5Y0FzMgoxQnV5MG1FK1VHTmpQbHpSYTNUNWlYVkltT0RyRXZ5THBVZUFIMUJOMmNGcnBEUWUxWVBHcXYzUys3VlFkVzJNClEzd3RvTEZVZmhEbThzS1JscjArV1RyN3NRVWFKSVhHOEZyOUNVTFlucDk0Q09uSnhSN1VLTThaci9GeFB2WTgKT2tOc210c25EaUk1WHAzR2ZKcVhlRlNudVJvR3pQZmpCVzU3VXUxUHFLdXduNnI1MkVWbDREMEhTeE5KS3pqSgo5a0ZJcDZISHlMUVFtV3kyNkE4Q0F3RUFBYU5DTUVBd0RnWURWUjBQQVFIL0JBUURBZ0trTUIwR0ExVWRKUVFXCk1CUUdDQ3NHQVFVRkJ3TUNCZ2dyQmdFRkJRY0RBVEFQQmdOVkhSTUJBZjhFQlRBREFRSC9NQTBHQ1NxR1NJYjMKRFFFQkN3VUFBNElCQVFCTCt1djh0Nm9FcE1KUWVCRFhxNGRFVHNRSVh5VkR5UEw1SlNKWElvMUU1UUs4VzFlaQptMkZ4c3dWb20rdHY0OWdYa1JnUDhnbmh6bGVWay9MNW4wUDUveTJyb1RmczJ6UE1zOUNjSFQveHk0K0o5cnNDCkp2RVIwUkVvUUVOOHNQdnYwUnpFd1Vab3hQejdEMzdKK0tlRy90cVpZMXJ3UzB5Y0xzSTlWRTBIZmppdlUxL2gKbkhucWlsaFN1NWV3QVAyOFJ6eHBFT2hjK3lSVGZrMm1Xdm1TY1FLR2xKNGw2ekV3ejROV1NQVTA2Z21Sb1l4QgpHS25PSVZvSDBIMnJnRjNrOFJlSE5zZExkUzhLN1dWaVVXUzdqQ2tmU3J2QWRrZWZCWnhjSHU2WGRQVjdRU2hmClhXd2g1eVFOSjA3aG5KdWRndys2cEJhVmpUTkJLWkxxYTJyeAotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
+      service:
+        name: marble-injector-svc
+        namespace: marblerun
+        path: "/mutate"
+    rules:
+    - operations: ["CREATE"]
+      apiGroups: [""]
+      apiVersions: ["v1"]
+      resources: ["pods"]
+      scope: "Namespaced"
+    namespaceSelector:
+      matchLabels:
+        marblerun/monitor: marblerun
+    admissionReviewVersions: ["v1", "v1beta1"]
+    sideEffects: None

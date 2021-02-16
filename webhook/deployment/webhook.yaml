@@ -37,8 +37,8 @@ spec:
         - name: WEBHOOK_KEY
           value: /etc/webhook/certs/key.pem # Same as WEBHOOK_CRT
         name: marble-injector
-        image: #TODO: add image here
-        imagePullPolicy: ifNotPresent
+        image: test/marblewebhook:v1
+        imagePullPolicy: IfNotPresent
         volumeMounts:
           - name: webhook-certs
             mountPath: /etc/webhook/certs
@@ -48,6 +48,10 @@ spec:
         #  limits:
         #    cpu: 100m
         #    memory: 100Mi
+      volumes:
+      - name: webhook-certs
+        secret:
+          secretName: marble-injector-webhook-certs
 ---
 apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
@@ -62,20 +66,20 @@ webhooks:
       service:
         name: marble-injector-svc
         namespace: marblerun # Maybe kube-system namespace instead
-        #TODO set this conditionally through helm chart
-        path: "/mutate || /mutate-no-sgx"
-      rules:
-      - operation: ["CREATE"] # maybe also add update ?
-        apiGroups: [""]
-        apiVersions: ["v1"]
-        resources: ["pods"]
-        scope: "Namespaced"
-      # Only send mutate requests if pod is going to be deployed in a namespace with marblerun annotation
-      namespaceSelector:
-        matchLabels:
-          # value is set through cli namespace add
-          marblerun/monitor: marblerun
-          #marblerun/inject-sgx: enabled
+        #TODO set this conditionally to /mutate or /mutate-no-sgx through helm chart
+        path: "/mutate"
+    rules:
+    - operations: ["CREATE"] # maybe also add update ?
+      apiGroups: [""]
+      apiVersions: ["v1"]
+      resources: ["pods"]
+      scope: "Namespaced"
+    # Only send mutate requests if pod is going to be deployed in a namespace with marblerun annotation
+    namespaceSelector:
+      matchLabels:
+        # value is set through cli namespace add
+        marblerun/monitor: marblerun
+        #marblerun/inject-sgx: enabled
 #  # This might be a better way, but will require testing and some changes to cli namespace functions
 #  # The idea is to define 2 webhooks, one which runs if a special sgx-inject annotation IS set for a namespace
 #  # and one which runs by default if NO sgx-inject annotation is set
@@ -86,13 +90,13 @@ webhooks:
 #        name: marble-injector-svc
 #        namespace: marblerun # Maybe kube-system namespace instead
 #        path: "/mutate-no-sgx"
-#      rules:
-#      - operation: ["CREATE"]
-#        apiGroups: [""]
-#        apiVersions: ["v1"]
-#        resources: ["pods"]
-#        scope: "Namespaced"
-#      namespaceSelector:
-#        matchLabels:
-#          marblerun/monitor: marblerun
-#          marblerun/inject-sgx: disabled
+#    rules:
+#    - operation: ["CREATE"]
+#      apiGroups: [""]
+#      apiVersions: ["v1"]
+#      resources: ["pods"]
+#      scope: "Namespaced"
+#    namespaceSelector:
+#      matchLabels:
+#        marblerun/monitor: marblerun
+#        marblerun/inject-sgx: disabled

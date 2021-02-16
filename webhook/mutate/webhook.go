@@ -1,4 +1,4 @@
-package webhook
+package mutate
 
 import (
 	"encoding/json"
@@ -12,13 +12,17 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// CoordAddr contains the address of the marblerun coordinator
+var CoordAddr string
+
 type patchOperation struct {
 	Op    string      `json:"op"`
 	Path  string      `json:"path"`
 	Value interface{} `json:"value,omitempty"`
 }
 
-func handleMutate(w http.ResponseWriter, r *http.Request) {
+// HandleMutate handles mutate requests and injects sgx tolerations into the request
+func HandleMutate(w http.ResponseWriter, r *http.Request) {
 	body := checkRequest(w, r)
 	if body == nil {
 		// Error was already written to w
@@ -36,8 +40,8 @@ func handleMutate(w http.ResponseWriter, r *http.Request) {
 	w.Write(mutatedBody)
 }
 
-// same as handleMutate but apply mutate without sgx values
-func handleMutateNoSGX(w http.ResponseWriter, r *http.Request) {
+// HandleMutateNoSGX omits injecting sgx tolerations but otherwise functions the same as HandleMutate
+func HandleMutateNoSGX(w http.ResponseWriter, r *http.Request) {
 	body := checkRequest(w, r)
 	if body == nil {
 		// Error was already written to w
@@ -97,7 +101,7 @@ func mutate(body []byte, sgx bool) ([]byte, error) {
 	uuidFile := fmt.Sprintf("/%s/data/uuid", marbleType)
 
 	// check if EDG env variables are set, if not set them here
-	patch = append(patch, addEnvVar("EDG_MARBLE_COORDINATOR_ADDR", coordAddr, pod.Spec.Containers)...)
+	patch = append(patch, addEnvVar("EDG_MARBLE_COORDINATOR_ADDR", CoordAddr, pod.Spec.Containers)...)
 	patch = append(patch, addEnvVar("EDG_MARBLE_TYPE", marbleType, pod.Spec.Containers)...)
 	patch = append(patch, addEnvVar("EDG_MARBLE_DNS_NAMES", marbleDNSName, pod.Spec.Containers)...)
 	patch = append(patch, addEnvVar("EDG_MARBLE_UUID_FILE", uuidFile, pod.Spec.Containers)...)

@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: marble-injector-deployment
+  namespace: marblerun
+  labels:
+    app: marble-injector
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: marble-injector
+  template:
+    metadata:
+      labels:
+        app: marble-injector
+    spec:
+      containers:
+      - args:
+        - -coordAddr=coordinator-mesh-api.marblerun:25554
+        - -tlsCertFile=/etc/webhook/certs/cert.pem
+        - -tlsKeyFile=/etc/webhook/certs/key.pem
+        name: marble-injector
+        image: test/marblewebhook:v5
+        imagePullPolicy: IfNotPresent
+        volumeMounts:
+          - name: webhook-certs
+            mountPath: /etc/webhook/certs
+            readOnly: true
+      volumes:
+      - name: webhook-certs
+        secret:
+          secretName: marble-injector-webhook-certs
