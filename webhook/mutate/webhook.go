@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 
 	v1 "k8s.io/api/admission/v1"
@@ -23,6 +24,7 @@ type patchOperation struct {
 
 // HandleMutate handles mutate requests and injects sgx tolerations into the request
 func HandleMutate(w http.ResponseWriter, r *http.Request) {
+	log.Println("Handling mutate request")
 	body := checkRequest(w, r)
 	if body == nil {
 		// Error was already written to w
@@ -30,7 +32,7 @@ func HandleMutate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// mutate the request and add sgx tolerations to pod
-	mutatedBody, err := mutate(body, true)
+	mutatedBody, err := mutateSimple(body, true)
 	if err != nil {
 		http.Error(w, "unable to mutate request", http.StatusInternalServerError)
 		return
@@ -85,6 +87,9 @@ func mutate(body []byte, sgx bool) ([]byte, error) {
 		Response: &v1.AdmissionResponse{
 			Allowed: true,
 			UID:     admReviewReq.Request.UID,
+			AuditAnnotations: map[string]string{
+				"mutated": "true",
+			},
 		},
 	}
 

@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: marble-injector-svc
+  name: marble-injector
   namespace: marblerun
   labels:
     app: marble-injector

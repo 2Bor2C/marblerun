@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: marble-injector-deployment
+  name: marble-injector
   namespace: marblerun
   labels:
     app: marble-injector
@@ -21,12 +21,16 @@ spec:
         - -tlsCertFile=/etc/webhook/certs/cert.pem
         - -tlsKeyFile=/etc/webhook/certs/key.pem
         name: marble-injector
-        image: test/marblewebhook:v5
+        image: test/marblewebhook:v1
         imagePullPolicy: IfNotPresent
         volumeMounts:
           - name: webhook-certs
             mountPath: /etc/webhook/certs
             readOnly: true
+        ports:
+          - containerPort: 8443
+            name: http
+
       volumes:
       - name: webhook-certs
         secret:

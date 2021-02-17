@@ -46,9 +46,9 @@ while [[ $# -gt 0 ]]; do
     shift
 done
 
-[ -z "${service}" ] && service=sidecar-injector-webhook-svc
-[ -z "${secret}" ] && secret=sidecar-injector-webhook-certs
-[ -z "${namespace}" ] && namespace=default
+[ -z "${service}" ] && service=marble-injector
+[ -z "${secret}" ] && secret=marble-injector-webhook-certs
+[ -z "${namespace}" ] && namespace=marblerun
 
 if [ ! -x "$(command -v openssl)" ]; then
     echo "openssl not found"
@@ -68,29 +68,33 @@ distinguished_name = req_distinguished_name
 basicConstraints = CA:FALSE
 keyUsage = nonRepudiation, digitalSignature, keyEncipherment
 extendedKeyUsage = serverAuth
+subjectAltName = @alt_names
+[alt_names]
+DNS.1 = ${service}
+DNS.2 = ${service}.${namespace}
+DNS.3 = ${service}.${namespace}.svc
 EOF
 
 openssl genrsa -out "${tmpdir}"/server-key.pem 2048
-openssl req -new -key "${tmpdir}"/server-key.pem -subj "/O=system:nodes/CN=system:node:${service}.${namespace}.svc" -out "${tmpdir}"/server.csr -config "${tmpdir}"/csr.conf
+openssl req -new -key "${tmpdir}"/server-key.pem -subj "/CN=${service}.${namespace}.svc" -out "${tmpdir}"/server.csr -config "${tmpdir}"/csr.conf
 
 # clean-up any previously created CSR for our service. Ignore errors if not present.
 kubectl delete csr ${csrName} 2>/dev/null || true
 
 # create  server cert/key CSR and  send to k8s API
 cat <<EOF | kubectl create -f -
-apiVersion: certificates.k8s.io/v1
+apiVersion: certificates.k8s.io/v1beta1
 kind: CertificateSigningRequest
 metadata:
   name: ${csrName}
 spec:
-  signerName: "kubernetes.io/kube-apiserver-client-kubelet"
   groups:
   - system:authenticated
   request: $(< "${tmpdir}"/server.csr base64 | tr -d '\n')
   usages:
   - digital signature
   - key encipherment
-  - client auth
+  - server auth
 EOF
 
 # verify CSR has been created

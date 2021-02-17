@@ -1,15 +1,15 @@
 apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
-  name: marble-injector-cfg
+  name: marble-injector
   labels:
     app: marble-injector
 webhooks:
-  - name: marble-injector.marblerun.svc.cluster.local
+  - name: marble-injector.cluster.local
     clientConfig:
       caBundle: ${CA_BUNDLE}
       service:
-        name: marble-injector-svc
+        name: marble-injector
         namespace: marblerun
         path: "/mutate"
     rules:
