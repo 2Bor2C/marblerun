@@ -16,12 +16,6 @@ import (
 // CoordAddr contains the address of the marblerun coordinator
 var CoordAddr string
 
-type patchOperation struct {
-	Op    string      `json:"op"`
-	Path  string      `json:"path"`
-	Value interface{} `json:"value,omitempty"`
-}
-
 // HandleMutate handles mutate requests and injects sgx tolerations into the request
 func HandleMutate(w http.ResponseWriter, r *http.Request) {
 	log.Println("Handling mutate request")
@@ -32,7 +26,7 @@ func HandleMutate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// mutate the request and add sgx tolerations to pod
-	mutatedBody, err := mutateSimple(body, true)
+	mutatedBody, err := mutate(body, true)
 	if err != nil {
 		http.Error(w, "unable to mutate request", http.StatusInternalServerError)
 		return
@@ -93,30 +87,47 @@ func mutate(body []byte, sgx bool) ([]byte, error) {
 		},
 	}
 
+	pT := v1.PatchTypeJSONPatch
+        admReviewResponse.Response.PatchType = &pT
+
 	// create patch
-	var patch []patchOperation
+	var patch []map[string]interface{}
 
 	// generate env variable values
-	marbleType := pod.GetName()
-	// ensure a name is set
-	if marbleType == "" {
-		marbleType = pod.GetGenerateName()
-	}
-	marbleDNSName := fmt.Sprintf("%s,%s.%s,%s.%s.svc.cluster.local", marbleType, marbleType, pod.GetNamespace(), marbleType, pod.GetNamespace())
-	uuidFile := fmt.Sprintf("/%s/data/uuid", marbleType)
+	metadata := &pod.ObjectMeta
+	marbleType := metadata.GetName() //returns empty string
+	namespace := metadata.GetNamespace()
 
-	// check if EDG env variables are set, if not set them here
-	patch = append(patch, addEnvVar("EDG_MARBLE_COORDINATOR_ADDR", CoordAddr, pod.Spec.Containers)...)
-	patch = append(patch, addEnvVar("EDG_MARBLE_TYPE", marbleType, pod.Spec.Containers)...)
-	patch = append(patch, addEnvVar("EDG_MARBLE_DNS_NAMES", marbleDNSName, pod.Spec.Containers)...)
-	patch = append(patch, addEnvVar("EDG_MARBLE_UUID_FILE", uuidFile, pod.Spec.Containers)...)
+	newEnvVars := []corev1.EnvVar{
+		corev1.EnvVar{
+			Name:	"EDG_MARBLE_COORDINATOR_ADDR",
+			Value:	CoordAddr,
+		},
+		corev1.EnvVar{
+			Name:	"EDG_MARBLE_TYPE",
+			Value:	marbleType,
+		},
+		corev1.EnvVar{
+			Name:	"EDG_MARBLE_DNS_NAMES",
+			Value:	fmt.Sprintf("%s,%s.%s,%s.%s.svc.cluster.local", marbleType, marbleType, namespace, marbleType, namespace),
+
+		},
+		corev1.EnvVar{
+			Name:	"EDG_MARBLE_UUID_FILE",
+			Value:	fmt.Sprintf("/%s/data/uuid", marbleType),
+		},
+	}
+
+	for idx, container := range pod.Spec.Containers {
+		patch = append(patch, addEnvVar(container.Env, newEnvVars, fmt.Sprintf("/spec/containers/%d/env", idx))...)
+	}
 
 	// add sgx tolerations if enabled
 	if sgx {
-		patch = append(patch, patchOperation{
-			Op:    "replace",
-			Path:  "/spec/tolerations",
-			Value: corev1.Toleration{Key: "kubernetes.azure.com/sgx_epc_mem_in_MiB"},
+		patch = append(patch, map[string]interface{}{
+			"op":    "add",
+			"path":  "/spec/tolerations/-",
+			"value": corev1.Toleration{Key: "kubernetes.azure.com/sgx_epc_mem_in_MiB"},
 		})
 	}
 
@@ -126,7 +137,7 @@ func mutate(body []byte, sgx bool) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	bytes, err := json.Marshal(&admReviewResponse)
+	bytes, err := json.Marshal(admReviewResponse)
 	if err != nil {
 		return nil, err
 	}
@@ -155,30 +166,38 @@ func checkRequest(w http.ResponseWriter, r *http.Request) []byte {
 	return body
 }
 
-func envIsSet(envVar corev1.EnvVar, containers []corev1.Container) bool {
-	for i := range containers {
-		for _, setVar := range containers[i].Env {
-			if setVar.Name == envVar.Name {
-				return true
-			}
+// envIsSet checks if an env variable is already set
+func envIsSet(setVars []corev1.EnvVar, testVar corev1.EnvVar) bool {
+	if len(setVars) == 0 {
+		return false
+	}
+	for _, setVar := range setVars {
+		if setVar.Name == testVar.Name {
+			return true
 		}
 	}
 	return false
 }
 
-// addEnvVar creates a patchOperation for a given env variable
-func addEnvVar(envName string, envVal string, containers []corev1.Container) []patchOperation {
-	var envPatch []patchOperation
-	envVar := corev1.EnvVar{
-		Name:  envName,
-		Value: envVal,
-	}
-	if !envIsSet(envVar, containers) {
-		for idx := range containers {
-			envPatch = append(envPatch, patchOperation{
-				Op:    "add",
-				Path:  fmt.Sprintf("/spec/containers/%d/env/-", idx),
-				Value: envVar,
+// addEnvVar creates a json patch setting all unset required environment variables
+func addEnvVar(setVars, newVars []corev1.EnvVar, basePath string) []map[string]interface{} {
+	var envPatch []map[string]interface{}
+	first := len(setVars) == 0
+	var newValue interface{}
+	for _, newVar := range newVars {
+		newValue = newVar
+		path := basePath
+		if first {
+			first = false
+			newValue = []corev1.EnvVar{newVar}
+		} else {
+			path = path + "/-"
+		}
+		if !envIsSet(setVars, newVar) {
+			envPatch = append(envPatch, map[string]interface{}{
+				"op":	"add",
+				"path":	path,
+				"value": newValue,
 			})
 		}
 	}

@@ -1,24 +1,26 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: sleep
-  namespace: default
+  name: test
+  namespace: testspace
   labels:
-    app: sleep
+    app: test
+    marbleType: test
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: sleep
+      app: test
   template:
     metadata:
       labels:
-        app: sleep
+        app: test
       annotations:
         injected: not-yet
     spec:
       containers:
-      - name: sleep
-        image: tutum/curl
-        command: ["/bin/sleep","infinity"]
+      - name: test
+        image: alpine:latest
+        command: ["/bin/sh", "-c", "--"]
+        args: ["while true; do sleep 30; done;"]
         imagePullPolicy: IfNotPresent
