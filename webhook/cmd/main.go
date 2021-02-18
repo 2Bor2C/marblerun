@@ -17,7 +17,7 @@ func main() {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/mutate", mutate.HandleMutate)
-	mux.HandleFunc("/mutate-no-sgx", mutate.HandleMutateNoSGX)
+	mux.HandleFunc("/mutate-no-sgx", mutate.HandleMutateNoSgx)
 
 	s := &http.Server{
 		// Addresse forwarding to 443 should be handled by the webhook service object

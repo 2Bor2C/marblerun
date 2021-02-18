@@ -17,11 +17,11 @@ spec:
     spec:
       containers:
       - args:
-        - -coordAddr=coordinator-mesh-api.marblerun:25554
+        - -coordAddr=coordinator-mesh-api.marblerun:25554 # this needs to be conditionaly set through helm chart
         - -tlsCertFile=/etc/webhook/certs/cert.pem
         - -tlsKeyFile=/etc/webhook/certs/key.pem
         name: marble-injector
-        image: test/marblewebhook:v1
+        image: test/marblewebhook:v1 # image should be set to webhook:latest 
         imagePullPolicy: IfNotPresent
         volumeMounts:
           - name: webhook-certs

@@ -36,15 +36,16 @@ func HandleMutate(w http.ResponseWriter, r *http.Request) {
 	w.Write(mutatedBody)
 }
 
-// HandleMutateNoSGX omits injecting sgx tolerations but otherwise functions the same as HandleMutate
-func HandleMutateNoSGX(w http.ResponseWriter, r *http.Request) {
+// HandleMutateNoSgx is called when the sgx injection label is not set
+func HandleMutateNoSgx(w http.ResponseWriter, r *http.Request) {
+	log.Println("Handling mutate request")
 	body := checkRequest(w, r)
 	if body == nil {
 		// Error was already written to w
 		return
 	}
 
-	// mutate the request and omit sgx tolerations
+	// mutate the request and add sgx tolerations to pod
 	mutatedBody, err := mutate(body, false)
 	if err != nil {
 		http.Error(w, "unable to mutate request", http.StatusInternalServerError)
@@ -56,7 +57,7 @@ func HandleMutateNoSGX(w http.ResponseWriter, r *http.Request) {
 }
 
 // mutate handles the creation of json patches for pods
-func mutate(body []byte, sgx bool) ([]byte, error) {
+func mutate(body []byte, injectSgx bool) ([]byte, error) {
 	admReviewReq := v1.AdmissionReview{}
 	if err := json.Unmarshal(body, &admReviewReq); err != nil {
 		return nil, err
@@ -66,7 +67,6 @@ func mutate(body []byte, sgx bool) ([]byte, error) {
 		return nil, errors.New("empty admission request")
 	}
 
-	// check if valid pod was sent
 	var pod corev1.Pod
 	if err := json.Unmarshal(admReviewReq.Request.Object.Raw, &pod); err != nil {
 		return nil, err
@@ -79,51 +79,63 @@ func mutate(body []byte, sgx bool) ([]byte, error) {
 			APIVersion: "admission.k8s.io/v1",
 		},
 		Response: &v1.AdmissionResponse{
-			Allowed: true,
-			UID:     admReviewReq.Request.UID,
-			AuditAnnotations: map[string]string{
-				"mutated": "true",
-			},
+			UID: admReviewReq.Request.UID,
 		},
 	}
 
 	pT := v1.PatchTypeJSONPatch
-        admReviewResponse.Response.PatchType = &pT
+	admReviewResponse.Response.PatchType = &pT
 
-	// create patch
-	var patch []map[string]interface{}
+	// get marble type from pod labels
+	marbleType := pod.Labels["marblerun.marbletype"]
+	// reject pod if label does not exist
+	if len(marbleType) == 0 {
+		admReviewResponse.Response.Allowed = false
+		admReviewResponse.Response.Result = &metav1.Status{
+			Status: "Rejected",
+			Reason: "Missing required label: [marblerun.marbletype]",
+		}
+		bytes, err := json.Marshal(admReviewResponse)
+		if err != nil {
+			return nil, err
+		}
+		return bytes, nil
+	}
 
-	// generate env variable values
-	metadata := &pod.ObjectMeta
-	marbleType := metadata.GetName() //returns empty string
-	namespace := metadata.GetNamespace()
+	// get namespace of pod
+	namespace := pod.Namespace
+	if namespace == "" {
+		namespace = "default"
+	}
 
 	newEnvVars := []corev1.EnvVar{
-		corev1.EnvVar{
-			Name:	"EDG_MARBLE_COORDINATOR_ADDR",
-			Value:	CoordAddr,
+		{
+			Name:  "EDG_MARBLE_COORDINATOR_ADDR",
+			Value: CoordAddr,
 		},
-		corev1.EnvVar{
-			Name:	"EDG_MARBLE_TYPE",
-			Value:	marbleType,
+		{
+			Name:  "EDG_MARBLE_TYPE",
+			Value: marbleType,
 		},
-		corev1.EnvVar{
-			Name:	"EDG_MARBLE_DNS_NAMES",
-			Value:	fmt.Sprintf("%s,%s.%s,%s.%s.svc.cluster.local", marbleType, marbleType, namespace, marbleType, namespace),
-
+		{
+			Name:  "EDG_MARBLE_DNS_NAMES",
+			Value: fmt.Sprintf("%s,%s.%s,%s.%s.svc.cluster.local", marbleType, marbleType, namespace, marbleType, namespace),
 		},
-		corev1.EnvVar{
-			Name:	"EDG_MARBLE_UUID_FILE",
-			Value:	fmt.Sprintf("/%s/data/uuid", marbleType),
+		{
+			Name:  "EDG_MARBLE_UUID_FILE",
+			Value: fmt.Sprintf("/%s/data/uuid", marbleType),
 		},
 	}
 
+	var patch []map[string]interface{}
+
+	// create env variable patches for each container of the pod
 	for idx, container := range pod.Spec.Containers {
 		patch = append(patch, addEnvVar(container.Env, newEnvVars, fmt.Sprintf("/spec/containers/%d/env", idx))...)
 	}
 
 	// add sgx tolerations if enabled
-	if sgx {
+	if injectSgx {
 		patch = append(patch, map[string]interface{}{
 			"op":    "add",
 			"path":  "/spec/tolerations/-",
@@ -137,6 +149,7 @@ func mutate(body []byte, sgx bool) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	admReviewResponse.Response.Allowed = true
 	bytes, err := json.Marshal(admReviewResponse)
 	if err != nil {
 		return nil, err
@@ -195,8 +208,8 @@ func addEnvVar(setVars, newVars []corev1.EnvVar, basePath string) []map[string]i
 		}
 		if !envIsSet(setVars, newVar) {
 			envPatch = append(envPatch, map[string]interface{}{
-				"op":	"add",
-				"path":	path,
+				"op":    "add",
+				"path":  path,
 				"value": newValue,
 			})
 		}

@@ -52,6 +52,7 @@ func TestMutatesValidRequest(t *testing.T) {
 					"creationTimestamp": null,
 					"labels": {
 						"name": "testpod"
+						"marblerun.marbletype": "test"
 					}
 				},
 				"spec": {
@@ -99,7 +100,7 @@ func TestMutatesValidRequest(t *testing.T) {
 	if err := json.Unmarshal(response, &r); err != nil {
 		t.Errorf("failed to unmarshal response with error %s", err)
 	}
-	if !strings.Contains(string(r.Response.Patch), `"op":"add","path":"/spec/containers/0/env/-","value":{"name":"EDG_MARBLE_COORDINATOR_ADDR","value":"coordinator-mesh-api.marblerun:25554"}`) {
+	if !strings.Contains(string(r.Response.Patch), `"op":"add","path":"/spec/containers/0/env","value":[{"name":"EDG_MARBLE_COORDINATOR_ADDR","value":"coordinator-mesh-api.marblerun:25554"}]`) {
 		t.Error("failed to apply coordinator env variable patch")
 	}
 	if !strings.Contains(string(r.Response.Patch), `"op":"add","path":"/spec/containers/0/env/-","value":{"name":"EDG_MARBLE_TYPE","value":"testpod"}`) {
@@ -111,7 +112,7 @@ func TestMutatesValidRequest(t *testing.T) {
 	if !strings.Contains(string(r.Response.Patch), `"op":"add","path":"/spec/containers/0/env/-","value":{"name":"EDG_MARBLE_UUID_FILE","value":"/testpod/data/uuid"}`) {
 		t.Error("failed to apply marble UUID file env variable patch")
 	}
-	if !strings.Contains(string(r.Response.Patch), `{"op":"replace","path":"/spec/tolerations","value":{"key":"kubernetes.azure.com/sgx_epc_mem_in_MiB"}}`) {
+	if !strings.Contains(string(r.Response.Patch), `{"op":"add","path":"/spec/tolerations","value":{"key":"kubernetes.azure.com/sgx_epc_mem_in_MiB"}}`) {
 		t.Error("failed to apply tolerations patch")
 	}
 
@@ -123,7 +124,7 @@ func TestMutatesValidRequest(t *testing.T) {
 	if err := json.Unmarshal(response, &r); err != nil {
 		t.Errorf("failed to unmarshal response with error %s", err)
 	}
-	if strings.Contains(string(r.Response.Patch), `{"op":"replace","path":"/spec/tolerations","value":{"key":"kubernetes.azure.com/sgx_epc_mem_in_MiB"}}`) {
+	if strings.Contains(string(r.Response.Patch), `{"op":"add","path":"/spec/tolerations","value":{"key":"kubernetes.azure.com/sgx_epc_mem_in_MiB"}}`) {
 		t.Error("patch contained sgx tolerations, but tolerations were not supposed to be set")
 	}
 }
@@ -228,7 +229,7 @@ func TestPreSetValues(t *testing.T) {
 
 	CoordAddr = "coordinator-mesh-api.marblerun:25554"
 
-	response, err := mutate([]byte(rawJSON), false)
+	response, err := mutate([]byte(rawJSON), true)
 	if err != nil {
 		t.Errorf("failed to mutate request with error %s", err)
 	}
@@ -236,7 +237,7 @@ func TestPreSetValues(t *testing.T) {
 	if err := json.Unmarshal(response, &r); err != nil {
 		t.Errorf("failed to unmarshal response with error %s", err)
 	}
-	if strings.Contains(string(r.Response.Patch), `"op":"add","path":"/spec/containers/0/env/-","value":{"name":"EDG_MARBLE_COORDINATOR_ADDR","value":"coordinator-mesh-api.marblerun:25554"}`) {
+	if strings.Contains(string(r.Response.Patch), `"op":"add","path":"/spec/containers/0/env","value":[{"name":"EDG_MARBLE_COORDINATOR_ADDR","value":"coordinator-mesh-api.marblerun:25554"}]`) {
 		t.Error("applied coordinator env variable patch when it shouldnt have")
 	}
 	if strings.Contains(string(r.Response.Patch), `"op":"add","path":"/spec/containers/0/env/-","value":{"name":"EDG_MARBLE_TYPE","value":"testpod"}`) {
@@ -267,7 +268,7 @@ func TestErrorsOnInvalidPod(t *testing.T) {
 			"object": "invalid"
 		}
 	}`
-	_, err := mutate([]byte(rawJSON), false)
+	_, err := mutate([]byte(rawJSON), true)
 	if err == nil {
 		t.Errorf("did not fail when sending invalid request with error %s", err)
 	}
