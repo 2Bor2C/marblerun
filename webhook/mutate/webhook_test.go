@@ -74,7 +74,7 @@ func TestMutatesValidRequest(t *testing.T) {
 	if !strings.Contains(string(r.Response.Patch), `"op":"add","path":"/spec/containers/0/env/-","value":{"name":"EDG_MARBLE_DNS_NAMES","value":"test,test.injectable,test.injectable.svc.cluster.local"}`) {
 		t.Error("failed to apply DNS name env varibale patch")
 	}
-	if !strings.Contains(string(r.Response.Patch), `"op":"add","path":"/spec/containers/0/env/-","value":{"name":"EDG_MARBLE_UUID_FILE","value":"/test/data/uuid"}`) {
+	if !strings.Contains(string(r.Response.Patch), `"op":"add","path":"/spec/containers/0/env/-","value":{"name":"EDG_MARBLE_UUID_FILE"`) {
 		t.Error("failed to apply marble UUID file env variable patch")
 	}
 	if !strings.Contains(string(r.Response.Patch), `"op":"add","path":"/spec/tolerations/-","value":{"key":"kubernetes.azure.com/sgx_epc_mem_in_MiB"}`) {
@@ -141,7 +141,7 @@ func TestPreSetValues(t *testing.T) {
 								},
 								{
 									"name": "EDG_MARBLE_UUID_FILE",
-									"value": "/different/data/unique/uuid"
+									"value": "012345-678-90"
 								}
 							]
 						}
@@ -169,16 +169,16 @@ func TestPreSetValues(t *testing.T) {
 		t.Errorf("failed to unmarshal response with error %s", err)
 	}
 
-	if strings.Contains(string(r.Response.Patch), `"op":"add","path":"/spec/containers/0/env","value":[{"name":"EDG_MARBLE_COORDINATOR_ADDR","value":"coordinator-mesh-api.marblerun:25554"}]`) {
+	if strings.Contains(string(r.Response.Patch), `"op":"add","path":"/spec/containers/0/env"`) {
 		t.Error("applied coordinator env variable patch when it shouldnt have")
 	}
-	if strings.Contains(string(r.Response.Patch), `"op":"add","path":"/spec/containers/0/env/-","value":{"name":"EDG_MARBLE_TYPE","value":"test"}`) {
+	if strings.Contains(string(r.Response.Patch), `"op":"add","path":"/spec/containers/0/env/-"`) {
 		t.Error("applied marble type env variable patch when it shouldnt have")
 	}
-	if strings.Contains(string(r.Response.Patch), `"op":"add","path":"/spec/containers/0/env/-","value":{"name":"EDG_MARBLE_DNS_NAMES","value":"test,test.injectable,test.injectable.svc.cluster.local"}`) {
+	if strings.Contains(string(r.Response.Patch), `"op":"add","path":"/spec/containers/0/env/-"`) {
 		t.Error("applied DNS name env varibale patch when it shouldnt have")
 	}
-	if strings.Contains(string(r.Response.Patch), `"op":"add","path":"/spec/containers/0/env/-","value":{"name":"EDG_MARBLE_UUID_FILE","value":"/test/data/uuid"}`) {
+	if strings.Contains(string(r.Response.Patch), `"op":"add","path":"/spec/containers/0/env/-"`) {
 		t.Error("applied marble UUID file env variable patch when it shouldnt have")
 	}
 }
@@ -212,25 +212,7 @@ func TestRejectsUnsetMarbletype(t *testing.T) {
 							],
 							"terminationMessagePath": "/dev/termination-log",
 							"terminationMessagePolicy": "File",
-							"imagePullPolicy": "IfNotPresent",
-							"env": [
-								{
-									"name": "EDG_MARBLE_COORDINATOR_ADDR",
-									"value": "coordinator-mesh-api.marblerun:42"
-								},
-								{
-									"name": "EDG_MARBLE_TYPE",
-									"value": "different"
-								},
-								{
-									"name": "EDG_MARBLE_DNS_NAMES",
-									"value": "different.example.com"
-								},
-								{
-									"name": "EDG_MARBLE_UUID_FILE",
-									"value": "/different/data/unique/uuid"
-								}
-							]
+							"imagePullPolicy": "IfNotPresent"
 						}
 					]
 				},

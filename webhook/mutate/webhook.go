@@ -123,7 +123,7 @@ func mutate(body []byte, injectSgx bool) ([]byte, error) {
 		},
 		{
 			Name:  "EDG_MARBLE_UUID_FILE",
-			Value: fmt.Sprintf("/%s/data/uuid", marbleType),
+			Value: string(pod.UID), // fmt.Sprintf("/%s/data/uuid", marbleType),
 		},
 	}
 
