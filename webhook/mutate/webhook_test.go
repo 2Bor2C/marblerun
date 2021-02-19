@@ -14,35 +14,8 @@ func TestMutatesValidRequest(t *testing.T) {
 		"kind": "AdmissionReview",
 		"request": {
 			"uid": "705ab4f5-6393-11e8-b7cc-42010a800002",
-			"kind": {
-				"group": "",
-				"version": "v1",
-				"kind": "Pod"
-			},
-			"resource": {
-				"group": "",
-				"version": "v1",
-				"resource": "pods"
-			},
-			"requestKind": {
-				"group": "",
-				"version": "v1",
-				"kind": "Pod"
-			},
-			"requestResource": {
-				"group": "",
-				"version": "v1",
-				"resource": "pods"
-			},
 			"namespace": "injectable",
 			"operation": "CREATE",
-			"userInfo": {
-				"username": "kubernetes-admin",
-				"groups": [
-					"system:masters",
-					"system:authenticated"
-				]
-			},
 			"object": {
 				"kind": "Pod",
 				"apiVersion": "v1",
@@ -51,7 +24,7 @@ func TestMutatesValidRequest(t *testing.T) {
 					"namespace": "injectable",
 					"creationTimestamp": null,
 					"labels": {
-						"name": "testpod"
+						"name": "testpod",
 						"marblerun.marbletype": "test"
 					}
 				},
@@ -67,16 +40,7 @@ func TestMutatesValidRequest(t *testing.T) {
 							"terminationMessagePolicy": "File",
 							"imagePullPolicy": "IfNotPresent"
 						}
-					],
-					"restartPolicy": "Always",
-					"terminationGracePeriodSeconds": 30,
-					"dnsPolicy": "ClusterFirst",
-					"serviceAccountName": "default",
-					"serviceAccount": "default",
-					"securityContext": {},
-					"schedulerName": "default-scheduler",
-					"priority": 0,
-					"enableServiceLinks": true
+					]
 				},
 				"status": {}
 			},
@@ -100,19 +64,20 @@ func TestMutatesValidRequest(t *testing.T) {
 	if err := json.Unmarshal(response, &r); err != nil {
 		t.Errorf("failed to unmarshal response with error %s", err)
 	}
+
 	if !strings.Contains(string(r.Response.Patch), `"op":"add","path":"/spec/containers/0/env","value":[{"name":"EDG_MARBLE_COORDINATOR_ADDR","value":"coordinator-mesh-api.marblerun:25554"}]`) {
 		t.Error("failed to apply coordinator env variable patch")
 	}
-	if !strings.Contains(string(r.Response.Patch), `"op":"add","path":"/spec/containers/0/env/-","value":{"name":"EDG_MARBLE_TYPE","value":"testpod"}`) {
+	if !strings.Contains(string(r.Response.Patch), `"op":"add","path":"/spec/containers/0/env/-","value":{"name":"EDG_MARBLE_TYPE","value":"test"}`) {
 		t.Error("failed to apply marble type env variable patch")
 	}
-	if !strings.Contains(string(r.Response.Patch), `"op":"add","path":"/spec/containers/0/env/-","value":{"name":"EDG_MARBLE_DNS_NAMES","value":"testpod,testpod.injectable,testpod.injectable.svc.cluster.local"}`) {
+	if !strings.Contains(string(r.Response.Patch), `"op":"add","path":"/spec/containers/0/env/-","value":{"name":"EDG_MARBLE_DNS_NAMES","value":"test,test.injectable,test.injectable.svc.cluster.local"}`) {
 		t.Error("failed to apply DNS name env varibale patch")
 	}
-	if !strings.Contains(string(r.Response.Patch), `"op":"add","path":"/spec/containers/0/env/-","value":{"name":"EDG_MARBLE_UUID_FILE","value":"/testpod/data/uuid"}`) {
+	if !strings.Contains(string(r.Response.Patch), `"op":"add","path":"/spec/containers/0/env/-","value":{"name":"EDG_MARBLE_UUID_FILE","value":"/test/data/uuid"}`) {
 		t.Error("failed to apply marble UUID file env variable patch")
 	}
-	if !strings.Contains(string(r.Response.Patch), `{"op":"add","path":"/spec/tolerations","value":{"key":"kubernetes.azure.com/sgx_epc_mem_in_MiB"}}`) {
+	if !strings.Contains(string(r.Response.Patch), `"op":"add","path":"/spec/tolerations/-","value":{"key":"kubernetes.azure.com/sgx_epc_mem_in_MiB"}`) {
 		t.Error("failed to apply tolerations patch")
 	}
 
@@ -124,6 +89,7 @@ func TestMutatesValidRequest(t *testing.T) {
 	if err := json.Unmarshal(response, &r); err != nil {
 		t.Errorf("failed to unmarshal response with error %s", err)
 	}
+
 	if strings.Contains(string(r.Response.Patch), `{"op":"add","path":"/spec/tolerations","value":{"key":"kubernetes.azure.com/sgx_epc_mem_in_MiB"}}`) {
 		t.Error("patch contained sgx tolerations, but tolerations were not supposed to be set")
 	}
@@ -135,35 +101,96 @@ func TestPreSetValues(t *testing.T) {
 		"kind": "AdmissionReview",
 		"request": {
 			"uid": "705ab4f5-6393-11e8-b7cc-42010a800002",
-			"kind": {
-				"group": "",
-				"version": "v1",
-				"kind": "Pod"
-			},
-			"resource": {
-				"group": "",
-				"version": "v1",
-				"resource": "pods"
-			},
-			"requestKind": {
-				"group": "",
-				"version": "v1",
-				"kind": "Pod"
-			},
-			"requestResource": {
-				"group": "",
-				"version": "v1",
-				"resource": "pods"
-			},
 			"namespace": "injectable",
 			"operation": "CREATE",
-			"userInfo": {
-				"username": "kubernetes-admin",
-				"groups": [
-					"system:masters",
-					"system:authenticated"
-				]
+			"object": {
+				"kind": "Pod",
+				"apiVersion": "v1",
+				"metadata": {
+					"name": "testpod",
+					"namespace": "injectable",
+					"creationTimestamp": null,
+					"labels": {
+						"name": "testpod",
+						"marblerun.marbletype": "test"
+					}
+				},
+				"spec": {
+					"containers": [
+						{
+							"name": "testpod",
+							"image": "test:image",
+							"command": [
+								"/bin/bash"
+							],
+							"terminationMessagePath": "/dev/termination-log",
+							"terminationMessagePolicy": "File",
+							"imagePullPolicy": "IfNotPresent",
+							"env": [
+								{
+									"name": "EDG_MARBLE_COORDINATOR_ADDR",
+									"value": "coordinator-mesh-api.marblerun:42"
+								},
+								{
+									"name": "EDG_MARBLE_TYPE",
+									"value": "different"
+								},
+								{
+									"name": "EDG_MARBLE_DNS_NAMES",
+									"value": "different.example.com"
+								},
+								{
+									"name": "EDG_MARBLE_UUID_FILE",
+									"value": "/different/data/unique/uuid"
+								}
+							]
+						}
+					]
+				},
+				"status": {}
 			},
+			"oldObject": null,
+			"dryRun": false,
+			"options": {
+				"kind": "CreateOptions",
+				"apiVersion": "meta.k8s.io/v1"
+			}
+		}
+	}`
+
+	CoordAddr = "coordinator-mesh-api.marblerun:25554"
+
+	response, err := mutate([]byte(rawJSON), true)
+	if err != nil {
+		t.Errorf("failed to mutate request with error %s", err)
+	}
+	r := v1.AdmissionReview{}
+	if err := json.Unmarshal(response, &r); err != nil {
+		t.Errorf("failed to unmarshal response with error %s", err)
+	}
+
+	if strings.Contains(string(r.Response.Patch), `"op":"add","path":"/spec/containers/0/env","value":[{"name":"EDG_MARBLE_COORDINATOR_ADDR","value":"coordinator-mesh-api.marblerun:25554"}]`) {
+		t.Error("applied coordinator env variable patch when it shouldnt have")
+	}
+	if strings.Contains(string(r.Response.Patch), `"op":"add","path":"/spec/containers/0/env/-","value":{"name":"EDG_MARBLE_TYPE","value":"test"}`) {
+		t.Error("applied marble type env variable patch when it shouldnt have")
+	}
+	if strings.Contains(string(r.Response.Patch), `"op":"add","path":"/spec/containers/0/env/-","value":{"name":"EDG_MARBLE_DNS_NAMES","value":"test,test.injectable,test.injectable.svc.cluster.local"}`) {
+		t.Error("applied DNS name env varibale patch when it shouldnt have")
+	}
+	if strings.Contains(string(r.Response.Patch), `"op":"add","path":"/spec/containers/0/env/-","value":{"name":"EDG_MARBLE_UUID_FILE","value":"/test/data/uuid"}`) {
+		t.Error("applied marble UUID file env variable patch when it shouldnt have")
+	}
+}
+
+func TestRejectsUnsetMarbletype(t *testing.T) {
+	rawJSON := `{
+		"apiVersion": "admission.k8s.io/v1",
+		"kind": "AdmissionReview",
+		"request": {
+			"uid": "705ab4f5-6393-11e8-b7cc-42010a800002",
+			"namespace": "injectable",
+			"operation": "CREATE",
 			"object": {
 				"kind": "Pod",
 				"apiVersion": "v1",
@@ -205,16 +232,7 @@ func TestPreSetValues(t *testing.T) {
 								}
 							]
 						}
-					],
-					"restartPolicy": "Always",
-					"terminationGracePeriodSeconds": 30,
-					"dnsPolicy": "ClusterFirst",
-					"serviceAccountName": "default",
-					"serviceAccount": "default",
-					"securityContext": {},
-					"schedulerName": "default-scheduler",
-					"priority": 0,
-					"enableServiceLinks": true
+					]
 				},
 				"status": {}
 			},
@@ -226,7 +244,6 @@ func TestPreSetValues(t *testing.T) {
 			}
 		}
 	}`
-
 	CoordAddr = "coordinator-mesh-api.marblerun:25554"
 
 	response, err := mutate([]byte(rawJSON), true)
@@ -237,17 +254,9 @@ func TestPreSetValues(t *testing.T) {
 	if err := json.Unmarshal(response, &r); err != nil {
 		t.Errorf("failed to unmarshal response with error %s", err)
 	}
-	if strings.Contains(string(r.Response.Patch), `"op":"add","path":"/spec/containers/0/env","value":[{"name":"EDG_MARBLE_COORDINATOR_ADDR","value":"coordinator-mesh-api.marblerun:25554"}]`) {
-		t.Error("applied coordinator env variable patch when it shouldnt have")
-	}
-	if strings.Contains(string(r.Response.Patch), `"op":"add","path":"/spec/containers/0/env/-","value":{"name":"EDG_MARBLE_TYPE","value":"testpod"}`) {
-		t.Error("applied marble type env variable patch when it shouldnt have")
-	}
-	if strings.Contains(string(r.Response.Patch), `"op":"add","path":"/spec/containers/0/env/-","value":{"name":"EDG_MARBLE_DNS_NAMES","value":"testpod,testpod.injectable,testpod.injectable.svc.cluster.local"}`) {
-		t.Error("applied DNS name env varibale patch when it shouldnt have")
-	}
-	if strings.Contains(string(r.Response.Patch), `"op":"add","path":"/spec/containers/0/env/-","value":{"name":"EDG_MARBLE_UUID_FILE","value":"/testpod/data/uuid"}`) {
-		t.Error("applied marble UUID file env variable patch when it shouldnt have")
+
+	if r.Response.Result.Status != "Rejected" {
+		t.Errorf("failed to reject pod on unset marbletype")
 	}
 }
 

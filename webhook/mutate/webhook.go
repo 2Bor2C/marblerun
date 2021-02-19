@@ -18,7 +18,7 @@ var CoordAddr string
 
 // HandleMutate handles mutate requests and injects sgx tolerations into the request
 func HandleMutate(w http.ResponseWriter, r *http.Request) {
-	log.Println("Handling mutate request")
+	log.Println("Handling mutate request, injecting sgx tolerations")
 	body := checkRequest(w, r)
 	if body == nil {
 		// Error was already written to w
@@ -38,7 +38,7 @@ func HandleMutate(w http.ResponseWriter, r *http.Request) {
 
 // HandleMutateNoSgx is called when the sgx injection label is not set
 func HandleMutateNoSgx(w http.ResponseWriter, r *http.Request) {
-	log.Println("Handling mutate request")
+	log.Println("Handling mutate request, omitting sgx injection")
 	body := checkRequest(w, r)
 	if body == nil {
 		// Error was already written to w
@@ -60,7 +60,7 @@ func HandleMutateNoSgx(w http.ResponseWriter, r *http.Request) {
 func mutate(body []byte, injectSgx bool) ([]byte, error) {
 	admReviewReq := v1.AdmissionReview{}
 	if err := json.Unmarshal(body, &admReviewReq); err != nil {
-		return nil, err
+		return nil, errors.New("invalid admission review")
 	}
 
 	if admReviewReq.Request == nil {
@@ -69,7 +69,7 @@ func mutate(body []byte, injectSgx bool) ([]byte, error) {
 
 	var pod corev1.Pod
 	if err := json.Unmarshal(admReviewReq.Request.Object.Raw, &pod); err != nil {
-		return nil, err
+		return nil, errors.New("invalid pod")
 	}
 
 	// admission response
@@ -97,14 +97,14 @@ func mutate(body []byte, injectSgx bool) ([]byte, error) {
 		}
 		bytes, err := json.Marshal(admReviewResponse)
 		if err != nil {
-			return nil, err
+			return nil, errors.New("unable to marshal admission response")
 		}
 		return bytes, nil
 	}
 
 	// get namespace of pod
 	namespace := pod.Namespace
-	if namespace == "" {
+	if len(namespace) == 0 {
 		namespace = "default"
 	}
 
@@ -147,12 +147,12 @@ func mutate(body []byte, injectSgx bool) ([]byte, error) {
 	var err error
 	admReviewResponse.Response.Patch, err = json.Marshal(patch)
 	if err != nil {
-		return nil, err
+		return nil, errors.New("unable to marshal json patch")
 	}
 	admReviewResponse.Response.Allowed = true
 	bytes, err := json.Marshal(admReviewResponse)
 	if err != nil {
-		return nil, err
+		return nil, errors.New("unable to marshal admission response")
 	}
 	return bytes, nil
 }

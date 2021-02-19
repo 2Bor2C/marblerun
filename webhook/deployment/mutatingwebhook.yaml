@@ -21,6 +21,7 @@ webhooks:
     namespaceSelector:
       matchLabels:
         marblerun/monitor: marblerun
+        marblerun/injectsgx: enabled
     admissionReviewVersions: ["v1", "v1beta1"]
     sideEffects: None
   - name: marble-injector-no-sgx.cluster.local
@@ -30,13 +31,14 @@ webhooks:
         name: marble-injector
         namespace: marblerun
         path: "/mutate-no-sgx"
-      rules:
-      - operations: ["CREATE"]
-        apiGroups: [""]
+    rules:
+    - operations: ["CREATE"]
+      apiGroups: [""]
       apiVersions: ["v1"]
       resources: ["pods"]
       scope: "Namespaced"
     namespaceSelector:
       matchLabels:
         marblerun/monitor: marblerun
-        marblerun/injectsgx: enabled
+    admissionReviewVersions: ["v1", "v1beta1"]
+    sideEffects: None
